@@ -1,3 +1,5 @@
+require "htmlentities"
+
 module Requester
   def select_main_menu_action
     # prompt the user for the "random | scores | exit" actions
@@ -8,9 +10,15 @@ module Requester
 
   def ask_question(question)
     # show category and difficulty from question
+    puts "Category: #{question[:category]} | Difficulty: #{question[:difficulty]}"
     # show the question
+    puts "Question: #{decode(question[:question])}"
     # show each one of the options
+    alternatives = decode_array(question[:incorrect_answers].push(question[:correct_answer]).shuffle)
+    options = array_to_string((1..alternatives.size).to_a)
+    answer = gets_option(enum_options(alternatives), options)
     # grab user input
+    alternatives[answer.to_i - 1]
   end
 
   def will_save?(score)
@@ -28,7 +36,7 @@ module Requester
     until options.include?(action)
       print "> "
       action = gets.chomp
-      options.include?(action) || (puts "Invalid Action") 
+      options.include?(action) || (puts "Invalid Action")
     end
     action
   end

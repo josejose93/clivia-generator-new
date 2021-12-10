@@ -4,10 +4,11 @@ require "httparty"
 require "json"
 require_relative "presenter"
 require_relative "requester"
-# require_relative "services/questions"
+require_relative "helpers/helpers"
 
 class CliviaGenerator
   # maybe we need to include a couple of modules?
+  include Helpers
   include Presenter
   include Requester
 
@@ -28,7 +29,7 @@ class CliviaGenerator
     until action == "exit"
       action = gets_option("", actions)
       case action
-      when "random" then load_questions
+      when "random" then random_trivia
       when "scores" then puts "scores"
       when "exit" then puts "exit"
       end
@@ -47,10 +48,41 @@ class CliviaGenerator
     # if response is correct, put a correct message and increase score
     # if response is incorrect, put an incorrect message, and which was the correct answer
     # once the questions end, show user's score and promp to save it
+    @questions.each do |question|
+      answer = ask_question(question)
+      correct_answer = decode(question[:correct_answer])
+      if answer == correct_answer
+        puts "#{answer}... Correct!"
+        @score += 10
+      else
+        puts "#{answer}... Incorrect!"
+        puts "The correct answer was: #{correct_answer}"
+      end
+    end
+    puts "Well done! Your score is #{@score}"
+    puts "--------------------------------------------------"
+    save_option = gets_option("Do you want to save your score? (y/n)", ["y", "n"])
+    if save_option == "y"
+      puts "Type the name to assign to the score"
+      print "> "
+      name_score = gets.chomp
+      name_score.empty? && (name_score = "Anonymous")
+      save({name: name_score, score: @score})
+    end
+    @score = 0
+    print_welcome
+    select_main_menu_action
   end
 
   def save(data)
     # write to file the scores data
+    data_final = []
+    if File.exist?(@file_name) && !File.empty?(@file_name)
+      data_final = JSON.parse(File.read(@file_name)).push(data)
+    else
+      data_final = [data]
+    end
+    File.write(@file_name, data_final.to_json)
   end
 
   def parse_scores
@@ -63,7 +95,6 @@ class CliviaGenerator
     # then parse the questions
     @questions = response.body
     parse_questions
-    pp @questions
   end
 
   def parse_questions
