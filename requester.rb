@@ -2,37 +2,38 @@ require "htmlentities"
 
 module Requester
   def select_main_menu_action
-    # prompt the user for the "random | scores | exit" actions
     actions = ["random", "scores", "exit"]
     puts actions.join(" | ")
     actions
   end
 
   def ask_question(question)
-    # show category and difficulty from question
     puts "Category: #{question[:category]} | Difficulty: #{question[:difficulty]}"
-    # show the question
     puts "Question: #{decode(question[:question])}"
-    # show each one of the options
     alternatives = decode_array(question[:incorrect_answers].push(question[:correct_answer]).shuffle)
     options = array_to_string((1..alternatives.size).to_a)
     answer = gets_option(enum_options(alternatives), options)
-    # grab user input
     alternatives[answer.to_i - 1]
   end
 
   def will_save?(score)
-    # show user's score
-    # ask the user to save the score
-    # grab user input
-    # prompt the user to give the score a name if there is no name given, set it as Anonymous
+    puts "Well done! Your score is #{score}"
+    puts "--------------------------------------------------"
+    save_option = gets_option("Do you want to save your score? (y/n)", ["y", "n"])
+    if save_option == "y"
+      puts "Type the name to assign to the score"
+      print "> "
+      name_score = gets.chomp
+      name_score.empty? && (name_score = "Anonymous")
+      save({ name: name_score, score: @score })
+    end
+    print_welcome
+    select_main_menu_action
   end
 
   def gets_option(prompt, options)
-    # prompt for an input
     !prompt.empty? && (puts prompt)
     action = nil
-    # keep going until the user gives a valid option
     until options.include?(action)
       print "> "
       action = gets.chomp

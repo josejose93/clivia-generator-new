@@ -17,7 +17,7 @@ module Helpers
   def enum_options(options)
     options_enum = ""
     options.each_with_index do |option, index|
-      options_enum += "#{index + 1}. #{option}\n"
+      options_enum += "#{index + 1}.".red + " #{option}\n"
     end
     options_enum
   end

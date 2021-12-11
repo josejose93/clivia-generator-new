@@ -1,53 +1,43 @@
-# do not forget to require your gem dependencies
-# do not forget to require_relative your local dependencies
 require "httparty"
 require "json"
+require "terminal-table"
+require "colorize"
 require_relative "presenter"
 require_relative "requester"
 require_relative "helpers/helpers"
 
 class CliviaGenerator
-  # maybe we need to include a couple of modules?
   include Helpers
   include Presenter
   include Requester
 
   def initialize
-    # we need to initialize a couple of properties here
     @score = 0
     @questions = []
     @file_name = ARGV.size.zero? ? "score.json" : ARGV.shift
   end
 
   def start
-    # welcome message
     print_welcome
-    # prompt the user for an action
     actions = select_main_menu_action
-    # keep going until the user types exit
     action = nil
     until action == "exit"
       action = gets_option("", actions)
       case action
       when "random" then random_trivia
-      when "scores" then puts "scores"
+      when "scores" then print_scores
       when "exit" then puts "exit"
       end
     end
   end
 
   def random_trivia
-    # load the questions from the api
     load_questions
-    # questions are loaded, then let's ask them
+    @score = 0
     ask_questions
   end
 
   def ask_questions
-    # ask each question
-    # if response is correct, put a correct message and increase score
-    # if response is incorrect, put an incorrect message, and which was the correct answer
-    # once the questions end, show user's score and promp to save it
     @questions.each do |question|
       answer = ask_question(question)
       correct_answer = decode(question[:correct_answer])
@@ -56,54 +46,61 @@ class CliviaGenerator
         @score += 10
       else
         puts "#{answer}... Incorrect!"
-        puts "The correct answer was: #{correct_answer}"
+        puts "The correct answer was: #{correct_answer}\n"
       end
     end
-    puts "Well done! Your score is #{@score}"
-    puts "--------------------------------------------------"
-    save_option = gets_option("Do you want to save your score? (y/n)", ["y", "n"])
-    if save_option == "y"
-      puts "Type the name to assign to the score"
-      print "> "
-      name_score = gets.chomp
-      name_score.empty? && (name_score = "Anonymous")
-      save({name: name_score, score: @score})
-    end
-    @score = 0
-    print_welcome
-    select_main_menu_action
+    # print "Well done! Your score is #{@score}\n--------------------------------------------------\n"
+    # save_option = gets_option("Do you want to save your score? (y/n)", ["y", "n"])
+    # if save_option == "y"
+    #   print "Type the name to assign to the score\n> "
+    #   name_score = gets.chomp
+    #   name_score.empty? && (name_score = "Anonymous")
+    #   save({ name: name_score, score: @score })
+    # end
+    # print_welcome
+    # select_main_menu_action
+    will_save?(@score)
   end
 
   def save(data)
-    # write to file the scores data
-    data_final = []
-    if File.exist?(@file_name) && !File.empty?(@file_name)
-      data_final = JSON.parse(File.read(@file_name)).push(data)
-    else
-      data_final = [data]
-    end
+    data_final = if File.exist?(@file_name) && !File.empty?(@file_name)
+                   JSON.parse(File.read(@file_name), symbolize_names: true).push(data)
+                 else
+                   [data]
+                 end
     File.write(@file_name, data_final.to_json)
   end
 
   def parse_scores
-    # get the scores data from file
+    if File.exist?(@file_name) && !File.empty?(@file_name)
+      JSON.parse(File.read(@file_name), symbolize_names: true)
+    else
+      []
+    end
   end
 
   def load_questions
-    # ask the api for a random set of questions
     response = HTTParty.get("https://opentdb.com/api.php?amount=10")
-    # then parse the questions
     @questions = response.body
     parse_questions
   end
 
   def parse_questions
-    # questions came with an unexpected structure, clean them to make it usable for our purposes
     @questions = JSON.parse(@questions, symbolize_names: true)[:results]
   end
 
   def print_scores
-    # print the scores sorted from top to bottom
+    list_scores = parse_scores
+    list_scores = list_scores.sort_by { |score| score[:score] }.reverse
+    table = Terminal::Table.new
+    table.title = "Top Scores"
+    table.headings = ["Name", "Score"]
+    table.rows = list_scores.map do |score|
+      print_score(score)
+    end
+    puts table
+    print_welcome
+    select_main_menu_action
   end
 end
 
